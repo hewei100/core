@@ -158,3 +158,117 @@ function get_alias_description($name)
 
     return null;
 }
+
+function alias_info_popup($name) {
+    global $config;
+
+    if (isset($config['aliases']['alias'])) {
+        foreach ($config['aliases']['alias'] as $alias) {
+            if ($alias['name'] == $name) {
+                $maxlength = 60;
+                $content = "";
+
+                if ($alias['url']) {
+                    // TODO: Change it when pf supports tables with ports
+                    if ($alias['type'] == "urltable") {
+                        exec("/sbin/pfctl -t {$alias['name']} -T show | wc -l", $total_entries);
+                        $counter=preg_replace("/\D/", "", $total_entries[0]);
+                        exec("/sbin/pfctl -t {$alias['name']} -T show | head -10002", $alias_addresses);
+                    } else {
+                        $urlfn = alias_expand_urltable($alias['name']);
+                        $alias_addresses = explode("\n", file_get_contents($urlfn));
+                        $counter = count($alias_addresses);
+                    }
+
+                    $content .= '<h5>'. $alias['url'] .'</h5><ul><li>'. implode('</li><li>', $alias_addresses) .'</li></ul>';
+                    if ($counter > 10002) {
+                            $content .= '<i>'. gettext("listing only first 10k items") .'</i>';
+                    }
+                } else {
+                    $alias_addresses = explode (" ", $alias['address']);
+                    $alias_details = explode ("||", $alias['detail']);
+                    $idx = 0;
+
+                    $content .= "<table>\n";
+                    $content .= "<thead>\n";
+                    $content .= "<tr>\n";
+                    $content .= "<th>" . gettext("Value") . "</th><th  style='padding-left: 10px;'>" . gettext("Description") . "</th></tr>\n";
+                    $content .= "</thead>\n";
+                    $content .= "<tbody>\n";
+
+                    foreach ($alias_addresses as $ap) {
+                        $content .= "   <tr>\n";
+                        $content .= "           <td>\n";
+                        $content .=                     $ap;
+                        $content .=     "               </td>\n";
+                        $content .= "           <td style='padding-left: 10px;'>\n";
+                        $content .=                     htmlspecialchars($alias_details[$idx]);
+                        $content .=     "               </td>\n";
+                        $content .= "   </tr>\n";
+                        $idx++;
+                    }
+
+                    $content .= "</tbody>\n";
+                    $content .= "<table>\n";
+                }
+
+                if (strlen($alias['descr']) >= $maxlength) {
+                    $alias['descr'] = substr($alias['descr'], 0, $maxlength) . '&hellip;';
+                }
+
+                return $content;
+            }
+        }
+    }
+}
+
+function filter_expand_specialnet($name) {
+    foreach (legacy_config_get_interfaces(array("enable" => true)) as $ifent => $ifdetail) {
+        if ($ifent == $name) {
+            return $ifdetail['ipaddr'].'/'.$ifdetail['subnet'];
+        } elseif (!isset($ifdetail['virtual']) && $ifent."ip" == $name) {
+            return $ifdetail['ipaddr'];
+        }
+    }
+    return $name;
+}
+
+function filter_expand_gateway($name) {
+    $gwip = "";
+    foreach (return_gateways_array() as $gw => $gwdetail) {
+        if ($gw == $name) {
+            $gwip = $gwdetail['gateway'];
+            break;
+/*
+        if (interface_has_gateway($ifent)) {
+            if ($name == $ifdetail['gateway']) {
+                return get_interface_gateway($ifent);
+                return lookup_gateway_ip_by_name($name);
+            } elseif ($name == $ifdetail['gatewayv6']) {
+                return lookup_gateway_ip_by_name($name);
+            }
+        } elseif (get_interface_gateway($ifent) == $name) {
+            return lookup_gateway_ip_by_name($name);
+        }
+*/
+        }
+    }
+    if (empty($gwinfo)) {
+        foreach (return_gateway_groups_array() as $gw => $gwlist) {
+            if ($gw == $name) {
+                if (count($gwlist) == 1) {
+                    $gwip = $gwlist[0]['gwip'];
+                } else {
+                    foreach ($gwlist as $g) {
+                        if (!empty($gwip)) {
+                            $gwip .= ", ";
+                        }
+                        $gwip .= $g['gwip'].'('.$g['weight'].')';
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return $gwip;
+}

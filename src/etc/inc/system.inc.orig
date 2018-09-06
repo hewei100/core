@@ -164,72 +164,22 @@ function system_resolvconf_generate($verbose = false)
         $resolvconf .= "nameserver 127.0.0.1\n";
     }
 
-    $resolvers = array();
     if (isset($syscfg['dnsallowoverride'])) {
         foreach (get_searchdomains() as $searchserver) {
             $resolvconf .= "search {$searchserver}\n";
         }
-        foreach (get_nameservers_group_by_interface() as $realif => $nameservers) {
-            foreach ($nameservers as $ns) {
-                $resolvers[$realif][] = $ns;
-            }
+        foreach (get_nameservers() as $nameserver) {
+            $resolvconf .= "nameserver $nameserver\n";
         }
     }
 
     if (isset($syscfg['dnsserver'][0])) {
-        $dnscounter = 0;
         foreach ($syscfg['dnsserver'] as $ns) {
-            $dnscounter += 1;
-            $dnsgw = "dns{$dnscounter}gw";
-            $global_ns = $ns;
-            if (isset($syscfg[$dnsgw]) && isset($config['gateways']['gateway_item'])) {
-                $gwname = $syscfg[$dnsgw];
-                foreach ($config['gateways']['gateway_item'] as $gateway) {
-                    if ($gwname == $gateway['name'] && !empty($gateway['interface'])) {
-                        $interface = $gateway['interface'];
-                        if (isset($config['interfaces'][$interface]['if'])) {
-                            $realif = $config['interfaces'][$interface]['if'];
-                            $resolvers[$realif][] = $ns;
-                            if (!isset($gateway['defaultgw'])) {
-                                unset($global_ns);
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            if (isset($global_ns)) {
-                $resolvers['any'][] = $global_ns;
-            }
+            $resolvconf .= "nameserver $ns\n";
         }
     }
 
     $dnslock = lock('resolvconf', LOCK_EX);
-
-    if (!isset($config['dnsmasq']['enable'])) {
-        $all_nameservers = array();
-        foreach ($resolvers as $nameservers) {
-            $all_nameservers += $nameservers;
-        }
-        array_unique($all_nameservers);
-        foreach ($all_nameservers as $ns) {
-            $resolvconf .= "nameserver $ns\n";
-        }
-    } else {
-        foreach ($resolvers as $realif => $nameservers) {
-            $fresolv = '/var/etc/resolv.dnsmasq';
-            if ($realif != 'any') {
-                $fresolv .= '_' . $realif;
-            }
-            array_unique($nameservers);
-            $resolvconf_if = '';
-            foreach ($nameservers as $ns) {
-                $resolvconf_if .= "nameserver $ns\n";
-            }
-            file_put_contents($fresolv, $resolvconf_if);
-            chmod($fresolv, 0644);
-        }
-    }
 
     file_put_contents('/etc/resolv.conf', $resolvconf);
     chmod('/etc/resolv.conf', 0644);
@@ -351,7 +301,7 @@ function get_dns_servers()
     return array_unique($dns_servers);
 }
 
-function get_nameservers_grouped_by_interface()
+function get_nameservers()
 {
     $master_list = array();
 
@@ -359,27 +309,16 @@ function get_nameservers_grouped_by_interface()
 
     if (is_array($dns_lists)) {
         foreach ($dns_lists as $fdns) {
-            $dnsgw = preg_replace("/^nameserver_/", "", basename($fdns));
             $contents = file($fdns, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
             if (!is_array($contents)) {
                 continue;
             }
             foreach ($contents as $dns) {
                 if (!empty($dns) && is_ipaddr($dns)) {
-                    $master_list[$dnsgw][] = $dns;
+                    $master_list[] = $dns;
                 }
             }
         }
-    }
-    
-    return $master_list;
-}
-
-function get_nameservers()
-{
-    $master_list = array();
-    foreach (get_nameservers_grouped_by_interface() as $nameservers) {
-        $master_list += $nameservers;
     }
 
     return array_unique($master_list);

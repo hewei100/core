@@ -604,7 +604,7 @@ function openvpn_reconfigure($mode, $settings, $device_only = false)
     $conf .= "daemon\n";
     $conf .= "keepalive 10 60\n";
     $conf .= "ping-timer-rem\n";
-    $conf .= "persist-tun\n";
+    $conf .= "#persist-tun\n";
     $conf .= "persist-key\n";
     $conf .= "proto {$proto}\n";
     $conf .= "cipher {$cipher}\n";
@@ -1278,12 +1278,13 @@ function openvpn_get_active_servers($type = 'multipoint')
             $server['port'] = ($settings['local_port']) ? $settings['local_port'] : 1194;
             $server['mode'] = $settings['mode'];
             if ($settings['description']) {
-                $server['name'] = "{$settings['description']} {$prot}:{$port}";
+                $server['name'] = "{$settings['description']} {$prot}";
             } else {
-                $server['name'] = "Server {$prot}:{$port}";
+                $server['name'] = "Server {$prot}";
             }
             $server['conns'] = array();
             $server['vpnid'] = $settings['vpnid'];
+            $server['local'] = $settings['interface'];
             $server['mgmt'] = "server{$server['vpnid']}";
             $socket = "unix:///var/etc/openvpn/{$server['mgmt']}.sock";
             list($tn, $sm) = explode('/', $settings['tunnel_network']);
@@ -1386,6 +1387,9 @@ function openvpn_get_active_clients()
             }
 
             $client['vpnid'] = $settings['vpnid'];
+            $client['local'] = $settings['interface'];
+            $client['remote_host'] = $settings['server_addr'];
+            $client['remote_port'] = $settings['server_port'];
             $client['mgmt'] = "client{$client['vpnid']}";
             $socket = "unix:///var/etc/openvpn/{$client['mgmt']}.sock";
             $client['status']="down";
@@ -1423,7 +1427,15 @@ function openvpn_get_client_status($client, $socket)
             if (strstr($line, "CONNECTED")) {
                 $client['status']="up";
                 $client['virtual_addr'] = $list[3];
-                $client['remote_host'] = $list[4];
+                if (!empty($list[4])) {
+                    $client['remote_host'] = $list[4];
+                }
+                if (!empty($list[5])) {
+                    $client['remote_port'] = $list[5];
+                }
+                if (!empty($list[6])) {
+                    $client['local'] = $list[6];
+                }
             } elseif (strstr($line, "CONNECTING")) {
                 $client['status']="connecting";
             } elseif (strstr($line, "ASSIGN_IP")) {
@@ -1465,8 +1477,7 @@ function openvpn_get_client_status($client, $socket)
         fclose($fp);
     } else {
         $DisplayNote=true;
-        $client['remote_host'] = "Unable to contact daemon";
-        $client['virtual_addr'] = "Service not running?";
+        $client['virtual_addr'] = "N/A";
         $client['bytes_recv'] = 0;
         $client['bytes_sent'] = 0;
         $client['connect_time'] = 0;

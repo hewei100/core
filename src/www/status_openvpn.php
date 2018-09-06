@@ -138,12 +138,15 @@ $( document ).ready(function() {
                 $i = 0;
                 foreach ($servers as $server): ?>
                 <tr>
-                  <td colspan="8"><b><?= $server['name'] ?> <?= gettext('Client connections') ?></b></td>
+                  <td colspan="11"><b><?= $server['name'] ?> <?= gettext('Client connections') ?></b></td>
                 </tr>
                 <tr>
                   <td><?=gettext("Common Name"); ?></td>
                   <td><?=gettext("Real Address"); ?></td>
-                  <td><?=gettext("Virtual Address"); ?></td>
+                  <td><?=gettext("Local IP"); ?></td>
+                  <td><?=gettext("Port"); ?></td>
+                  <td><?=gettext("Virtual Addr"); ?></td>
+                  <td><?=gettext("VIF"); ?></td>
                   <td><?=gettext("Connected Since"); ?></td>
                   <td><?=gettext("Bytes Sent"); ?></td>
                   <td><?=gettext("Bytes Received"); ?></td>
@@ -154,8 +157,11 @@ $( document ).ready(function() {
                 foreach ($server['conns'] as $conn): ?>
                 <tr id="<?= html_safe("r:{$server['mgmt']}:{$conn['remote_host']}") ?>">
                   <td><?=$conn['common_name'];?></td>
-                  <td><?=$conn['remote_host'];?></td>
+                  <td><?=preg_replace("/:.*$/", "", $conn['remote_host']);?></td>
+                  <td><?=$server['local'];?></td>
+                  <td><?=$server['port'];?></td>
                   <td><?=$conn['virtual_addr'];?></td>
+                  <td><?= 'ovpns'.$server['vpnid'];?></td>
                   <td><?=$conn['connect_time'];?></td>
                   <td><?=format_bytes($conn['bytes_sent']);?></td>
                   <td><?=format_bytes($conn['bytes_recv']);?></td>
@@ -177,12 +183,12 @@ $( document ).ready(function() {
                     <?= get_service_status_icon($ssvc, true); ?>
                     <?= get_service_control_links($ssvc, true); ?>
                   </td>
-                  <td colspan="6">&nbsp;</td>
+                  <td colspan="9">&nbsp;</td>
                 </tr>
 <?php
                   if (isset($server['routes']) && count($server['routes'])): ?>
                 <tr>
-                  <td colspan="8">
+                  <td colspan="11">
                     <button class="btn btn-default act_show_routes" type="button" id="showroutes_<?=$i?>"><i class="fa fa-info"></i>
                       <?=gettext("Show/Hide Routing Table"); ?>
                     </button>
@@ -226,12 +232,15 @@ $( document ).ready(function() {
                 endforeach;
               if (!empty($sk_servers)): ?>
                 <tr>
-                  <td colspan="8"><b><?= gettext('Peer to Peer Server Instance Statistics') ?></b></td>
+                  <td colspan="11"><b><?= gettext('Peer to Peer Server Instance Statistics') ?></b></td>
                 </tr>
                 <tr>
                   <td><?=gettext("Name"); ?></td>
                   <td><?=gettext("Remote Host"); ?></td>
+                  <td><?=gettext("Local IP"); ?></td>
+                  <td><?=gettext("Port"); ?></td>
                   <td><?=gettext("Virtual Addr"); ?></td>
+                  <td><?=gettext("VIF"); ?></td>
                   <td><?=gettext("Connected Since"); ?></td>
                   <td><?=gettext("Bytes Sent"); ?></td>
                   <td><?=gettext("Bytes Received"); ?></td>
@@ -243,11 +252,14 @@ $( document ).ready(function() {
                 <tr id="<?= html_safe("r:{$sk_server['port']}:{$sk_server['vpnid']}") ?>">
                   <td><?=$sk_server['name'];?></td>
                   <td><?=$sk_server['remote_host'];?></td>
+                  <td><?=$sk_server['local'];?></td>
+                  <td><?=$sk_server['port'];?></td>
                   <td><?=$sk_server['virtual_addr'];?></td>
+                  <td><?= 'ovpns'.$sk_server['vpnid'];?></td>
                   <td><?=$sk_server['connect_time'];?></td>
                   <td><?=format_bytes($sk_server['bytes_sent']);?></td>
                   <td><?=format_bytes($sk_server['bytes_recv']);?></td>
-                  <td><?=$sk_server['status'];?></td>
+                  <td><?=str_replace("; ", ";<br>", $sk_server['status']);?></td>
                   <td>
                     <div>
                       <?php $ssvc = find_service_by_name('openvpn', array('id' => $sk_server['vpnid'])); ?>
@@ -264,13 +276,16 @@ $( document ).ready(function() {
               if (!empty($clients)):?>
               <tr>
                 <tr>
-                  <td colspan="8"><b><?= gettext('Client Instance Statistics') ?><b></td>
+                  <td colspan="11"><b><?= gettext('Client Instance Statistics') ?><b></td>
                 </tr>
                 <tr>
                   <td><?=gettext("Name"); ?></td>
-                  <td><?=gettext("Connected Since"); ?></td>
-                  <td><?=gettext("Virtual Addr"); ?></td>
+                  <td><?=gettext("Local IP"); ?></td>
                   <td><?=gettext("Remote Host"); ?></td>
+                  <td><?=gettext("Port"); ?></td>
+                  <td><?=gettext("Virtual Addr"); ?></td>
+                  <td><?=gettext("VIF"); ?></td>
+                  <td><?=gettext("Connected Since"); ?></td>
                   <td><?=gettext("Bytes Sent"); ?></td>
                   <td><?=gettext("Bytes Rcvd"); ?></td>
                   <td><?=gettext("Status"); ?></td>
@@ -280,12 +295,15 @@ $( document ).ready(function() {
                 foreach ($clients as $client): ?>
                 <tr id="<?= html_safe("r:{$client['port']}:{$client['vpnid']}") ?>">
                   <td><?=$client['name'];?></td>
-                  <td><?=$client['connect_time'];?></td>
-                  <td><?=$client['virtual_addr'];?></td>
+                  <td><?=$client['local'];?></td>
                   <td><?=$client['remote_host'];?></td>
+                  <td><?=$client['remote_port'];?></td>
+                  <td><?=$client['virtual_addr'];?></td>
+                  <td><?= 'ovpnc'.$client['vpnid'];?></td>
+                  <td><?=$client['connect_time'];?></td>
                   <td><?=format_bytes($client['bytes_sent']);?></td>
                   <td><?=format_bytes($client['bytes_recv']);?></td>
-                  <td><?=$client['status'];?></td>
+                  <td><?=str_replace("; ", ";<br>", $client['status']);?></td>
                   <td>
                     <div>
                       <?php $ssvc = find_service_by_name('openvpn', array('id' => $client['vpnid'])); ?>

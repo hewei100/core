@@ -1178,7 +1178,10 @@ $( document ).ready(function() {
               <tr>
                 <td></td>
                 <td><?=gettext("Protocol"); ?></td>
+                <td><?=gettext("Interface / IP"); ?></td>
                 <td><?=gettext("Server"); ?></td>
+                <td><?=gettext("Port"); ?></td>
+                <td><?=gettext("TUN Network"); ?></td>
                 <td><?=gettext("Description"); ?></td>
                 <td class="text-nowrap"></td>
               </tr>
@@ -1202,7 +1205,10 @@ $( document ).ready(function() {
                   </a>
                 </td>
                 <td><?= htmlspecialchars($client['protocol']) ?></td>
-                <td><?= htmlspecialchars(implode(', ', $server)) ?></td>
+                <td><?= $client['ipaddr'] ? $client['ipaddr'] : get_interface_ip($client['interface']); ?></td>
+                <td><?= htmlspecialchars($client['server_addr']) ?></td>
+                <td><?= htmlspecialchars($client['server_port']) ?></td>
+                <td><?= htmlspecialchars($client['tunnel_network']) ?></td>
                 <td><?= htmlspecialchars($client['description']) ?></td>
                 <td class="text-nowrap">
                     <a data-id="<?=$i;?>" data-toggle="tooltip" title="<?=gettext("move selected before this item");?>" class="act_move btn btn-default btn-xs">
@@ -1223,12 +1229,12 @@ $( document ).ready(function() {
               $i++;
               endforeach;?>
               <tr>
-                <td colspan="4"></td>
+                <td colspan="7"></td>
                 <td class="text-nowrap">
                   <a data-id="<?=$i;?>" data-toggle="tooltip" title="<?=gettext("move selected items to end");?>" class="act_move btn btn-default btn-xs">
                     <span class="fa fa-arrow-down fa-fw"></span>
                   </a>
-                  <a data-id="x" title="<?=gettext("delete selected rules"); ?>" data-toggle="tooltip"  class="act_delete btn btn-default btn-xs">
+                  <a data-id="x" title="<?=gettext("delete selected items"); ?>" data-toggle="tooltip"  class="act_delete btn btn-default btn-xs">
                     <span class="fa fa-trash fa-fw"></span>
                   </a>
                 </td>

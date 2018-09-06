@@ -886,7 +886,7 @@ include("head.inc");
                         <table class="table table-condensed">
                           <tr>
                             <td>
-                              <select <?=!empty($pconfig['associated-rule-id']) ? "disabled" : "";?> name="src" id="src" class="selectpicker" data-live-search="true" data-size="5" data-width="auto">
+                              <select <?=!empty($pconfig['associated-rule-id']) ? "disabled" : "";?> name="src" id="src" class="selectpicker" data-live-search="true" data-size="10" data-width="auto">
                                 <option data-other=true value="<?=$pconfig['src'];?>" <?=!is_specialnet($pconfig['src']) ? "selected=\"selected\"" : "";?>><?=gettext("Single host or Network"); ?></option>
                                 <optgroup label="<?=gettext("Aliases");?>">
   <?php                        foreach (legacy_list_aliases("network") as $alias):
@@ -1016,7 +1016,7 @@ include("head.inc");
                       <table class="table table-condensed">
                         <tr>
                           <td>
-                            <select <?=!empty($pconfig['associated-rule-id']) ? "disabled" : "";?> name="dst" id="dst" class="selectpicker" data-live-search="true" data-size="5" data-width="auto">
+                            <select <?=!empty($pconfig['associated-rule-id']) ? "disabled" : "";?> name="dst" id="dst" class="selectpicker" data-live-search="true" data-size="20" data-width="auto">
                               <option data-other=true value="<?=$pconfig['dst'];?>" <?=!is_specialnet($pconfig['dst']) ? "selected=\"selected\"" : "";?>><?=gettext("Single host or Network"); ?></option>
                               <optgroup label="<?=gettext("Aliases");?>">
   <?php                        foreach (legacy_list_aliases("network") as $alias):
@@ -1215,7 +1215,7 @@ include("head.inc");
                   <tr>
                     <td><a id="help_for_gateway" href="#" class="showhelp"><i class="fa fa-info-circle"></i></a> <?=gettext("Gateway");?></td>
                     <td>
-                        <select name='gateway' class="selectpicker" data-live-search="true" data-size="5" data-width="auto">
+                        <select name='gateway' class="selectpicker" data-live-search="true" data-size="10" data-width="auto">
                         <option value="" ><?=gettext("default");?></option>
 <?php
                         foreach(return_gateways_array(true, true, true) as $gwname => $gw):

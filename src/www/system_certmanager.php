@@ -132,6 +132,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $pconfig['dn_city'] = null;
         $pconfig['dn_organization'] = null;
         $pconfig['dn_email'] = null;
+        $pconfig['dn_name' ] = null;
+
+        if (isset($a_cert[$id])) { // use server cert as client cert defaults
+            $cert = $a_cert[$id];
+            unset($id);
+            $pconfig['caref'] = $cert['caref'];
+            $res_key = openssl_pkey_get_private(array(0 => base64_decode($cert['prv']) , 1 => ""));
+            $crt_details = openssl_x509_parse(base64_decode($cert['crt']));
+            $key_details = openssl_pkey_get_details($res_key);
+            $pconfig['keylen'] = $key_details['bits'];
+            $alg = strtolower(preg_replace("/^[^-]+[-]/", "", $crt_details['signatureTypeSN']));
+            if (in_array($alg, $openssl_digest_algs)) {
+                $pconfig['digest_alg'] = $alg;
+            }
+            $pconfig['lifetime'] = floor(($crt_details['validTo_time_t'] - time()) / 3600 / 24);
+        }            
 
         if (isset($userid)) {
             $pconfig['descr'] = $a_user[$userid]['name'];
@@ -140,6 +156,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $pconfig['descr'] = null;
             $pconfig['dn_commonname'] = null;
         }
+
+    } elseif ($act == "edit") {
+        if (!isset($id)) {
+            header(url_safe('Location: /system_certmanager.php'));
+            exit;
+        }
+        $pconfig['camethod'] = "existing";
+        $pconfig['descr']  = $a_cert[$id]['descr'];
+        $pconfig['refid']  = $a_cert[$id]['refid'];
+        $pconfig['cert']   = base64_decode($a_cert[$id]['crt']);
+        #$pconfig['serial'] = $a_cert[$id]['serial'];
+        if (!empty($a_cert[$id]['prv'])) {
+            $pconfig['key'] = base64_decode($a_cert[$id]['prv']);
+        }
+        $pconfig['certref'] = $a_cert[$id]['refid'];
 
     } elseif ($act == "exp") {
         // export cert
@@ -429,6 +460,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         'organizationName' => $pconfig['dn_organization'],
                         'emailAddress' => $pconfig['dn_email'],
                         'commonName' => $pconfig['dn_commonname']);
+                    if (isset($pconfig['dn_name'])) {
+                        $dn['name'] = $pconfig['dn_name'];
+                    }
                     if (count($altnames)) {
                         $altnames_tmp = array();
                         foreach ($altnames as $altname) {
@@ -692,7 +726,7 @@ $( document ).ready(function() {
         <div class="content-box tab-content table-responsive">
 
 <?php
-        if ($act == "new") :?>
+        if ($act == "new" || $act == "edit" ) :?>
           <form method="post" name="iform" id="iform" >
             <input type="hidden" name="act" value="<?=$act;?>"/>
 <?php
@@ -905,6 +939,17 @@ $( document ).ready(function() {
                     <em><?=gettext("ex:");?></em>
                     &nbsp;
                     <?=gettext("internal-ca");?>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><a id="help_for_digest_dn_name" href="#" class="showhelp"><i class="fa fa-info-circle text-muted"></i></a> <?=gettext("X.509 Name");?> : &nbsp;</td>
+                <td>
+                  <input name="dn_name" id="dn_name" type="text" size="25" value="<?=$pconfig['dn_name'];?>"/>
+                  <div class="hidden" for="help_for_digest_dn_name">
+                    <em><?=gettext("ex:");?></em>
+                    &nbsp;
+                    <?=gettext("Full Name");?>
                   </div>
                 </td>
               </tr>
@@ -1292,6 +1337,10 @@ $( document ).ready(function() {
 <?php
                 endif; ?>
 
+                  <a href="system_certmanager.php?act=edit&amp;id=<?=$i;?>" class="btn btn-default btn-xs" data-toggle="tooltip" title="<?=gettext("edit cert");?>">
+                    <span class="glyphicon glyphicon-pencil"></span>
+                  </a>
+
                   <a href="#" class="btn btn-default btn-xs act_info" data-id="<?=$i;?>" data-toggle="tooltip" title="<?=gettext("show certificate info");?>">
                     <i class="fa fa-info-circle fa-fw"></i>
                   </a>
@@ -1318,6 +1367,12 @@ $( document ).ready(function() {
                   if (isset($cert['csr'])) :?>
                   <a href="system_certmanager.php?act=csr&amp;id=<?=$i;?>" class="btn btn-default btn-xs" data-toggle="tooltip" title="<?=gettext("update csr");?>">
                     <i class="fa fa-pencil fa-fw"></i>
+                  </a>
+<?php
+                  endif;
+                  if ($purpose['server'] == 'Yes') :?>
+                  <a href="system_certmanager.php?act=new&amp;method=internal&amp;id=<?=$i;?>" class="btn btn-default btn-xs" data-toggle="tooltip" title="<?=gettext("new client");?>">
+                    <span class="glyphicon glyphicon-plus-sign"></span>
                   </a>
 <?php
                   endif; ?>

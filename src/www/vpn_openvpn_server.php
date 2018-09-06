@@ -127,6 +127,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $pconfig = $_POST;
+    $input_errors = array();
     if (isset($_POST['id']) && isset($a_server[$_POST['id']])) {
         $id = $_POST['id'];
     }
@@ -143,6 +145,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
         header(url_safe('Location: /vpn_openvpn_server.php'));
         exit;
+    } elseif ($act == "del_x") {
+        if (!empty($pconfig['rule']) && is_array($pconfig['rule'])) {
+            foreach ($pconfig['rule'] as $rulei) {
+                if (isset($a_server[$rulei])) {
+                    openvpn_delete('server', $a_server[$rulei]);
+                    unset($a_server[$rulei]);
+                }
+            }
+            write_config();
+        }
+        header(url_safe('Location: /vpn_openvpn_server.php'));
+        exit;
+    } elseif ($act == "move"){
+      // move selected items
+      if (!isset($id)) {
+          // if id not set/found, move to end
+          $id = count($a_server);
+      }
+      $a_server = legacy_move_config_list_items($a_server, $id,  $pconfig['rule']);
+      write_config();
+      header(url_safe('Location: /vpn_openvpn_server.php'));
+      exit;
     } elseif ($act == "toggle") {
         if (isset($id)) {
             if (isset($a_server[$id]['disable'])) {
@@ -157,13 +181,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     } else {
         // action add/update
-        $input_errors = array();
-        $pconfig = $_POST;
-
         if (isset($id) && $a_server[$id]) {
             $vpnid = $a_server[$id]['vpnid'];
-        } else {
-            $vpnid = 0;
         }
         if ($pconfig['mode'] != "p2p_shared_key") {
             $tls_mode = true;
@@ -363,7 +382,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $server['vpnid'] = openvpn_vpnid_next();
             }
 
-            if ($pconfig['disable'] == "yes") {
+            if (isset($pconfig['disable']) && $pconfig['disable'] == "yes") {
                 $server['disable'] = true;
             }
             if (!empty($pconfig['authmode'])) {
@@ -440,25 +459,46 @@ $( document ).ready(function() {
   watchScrollPosition();
   // link delete buttons
   $(".act_delete").click(function(){
-    var id = $(this).attr("id").split('_').pop(-1);
-    BootstrapDialog.show({
+    var id = $(this).data("id");
+    if (id != 'x') {
+      BootstrapDialog.show({
+          type:BootstrapDialog.TYPE_DANGER,
+          title: "<?= gettext("OpenVPN");?>",
+          message: "<?= gettext("Do you really want to delete this server?"); ?>",
+          buttons: [{
+                  label: "<?= gettext("No");?>",
+                  action: function(dialogRef) {
+                      dialogRef.close();
+                  }}, {
+                    label: "<?= gettext("Yes");?>",
+                    action: function(dialogRef) {
+                      $.post(window.location, {act: 'del', id:id}, function(data) {
+                            location.reload();
+                      });
+                      dialogRef.close();
+                  }
+              }]
+      });
+    } else {
+      // delete selected
+      BootstrapDialog.show({
         type:BootstrapDialog.TYPE_DANGER,
-        title: "<?= gettext("OpenVPN");?>",
-        message: "<?= gettext("Do you really want to delete this server?"); ?>",
+        title: "<?=gettext("OpenVPN");?>",
+        message: "<?=gettext("Do you really want to delete the selected servers?");?>",
         buttons: [{
-                label: "<?= gettext("No");?>",
-                action: function(dialogRef) {
+                  label: "<?= gettext("No");?>",
+                  action: function(dialogRef) {
                     dialogRef.close();
-                }}, {
+                  }}, {
                   label: "<?= gettext("Yes");?>",
                   action: function(dialogRef) {
-                    $.post(window.location, {act: 'del', id:id}, function(data) {
-                          location.reload();
-                    });
-                    dialogRef.close();
+                    $("#id").val("");
+                    $("#action").val("del_x");
+                    $("#iform2").submit()
                 }
-            }]
-    });
+              }]
+      });
+    }
   });
 
   // link toggle buttons
@@ -467,6 +507,14 @@ $( document ).ready(function() {
       $.post(window.location, {act: 'toggle', id:$(this).data("id")}, function(data) {
           location.reload();
       });
+  });
+
+  // link move buttons
+  $(".act_move").click(function(event){
+    event.preventDefault();
+    $("#id").val($(this).data("id"));
+    $("#action").val("move");
+    $("#iform2").submit();
   });
 
   // input form events
@@ -1211,7 +1259,7 @@ endif; ?>
                         </div>
                       </td>
                     </tr>
-                    <tr class="opt_mode opt_mode_p2p_tls opt_mode_p2p_shared_key opt_mode_server_tls opt_mode_server_user opt_mode_server_tls_user">
+                    <tr class="opt_mode opt_mode_p2p_tls opt_mode_p2p_shared_key">
                       <td style="width:22%"><a id="help_for_remote_network" href="#" class="showhelp"><i class="fa fa-info-circle"></i></a> <?=gettext("IPv4 Remote Network"); ?></td>
                       <td>
                         <input name="remote_network" type="text" class="form-control unknown" size="40" value="<?=$pconfig['remote_network'];?>" />
@@ -1226,7 +1274,7 @@ endif; ?>
                         </div>
                       </td>
                     </tr>
-                    <tr class="opt_mode opt_mode_p2p_tls opt_mode_p2p_shared_key opt_mode_server_tls opt_mode_server_user opt_mode_server_tls_user">
+                    <tr class="opt_mode opt_mode_p2p_tls opt_mode_p2p_shared_key">
                       <td style="width:22%"><a id="help_for_remote_networkv6" href="#" class="showhelp"><i class="fa fa-info-circle"></i></a> <?=gettext("IPv6 Remote Network"); ?></td>
                       <td>
                         <input name="remote_networkv6" type="text" class="form-control unknown" size="40" value="<?=$pconfig['remote_networkv6'];?>" />
@@ -1605,13 +1653,18 @@ endif; ?>
 
 <?php
               else :?>
+        <form method="post" name="iform2" id="iform2">
           <section class="col-xs-12">
             <div class="tab-content content-box col-xs-12">
+              <input type="hidden" id="id" name="id" value="" />
+              <input type="hidden" id="action" name="act" value="" />
               <table class="table table-striped">
                 <thead>
                 <tr>
                   <td></td>
-                  <td><?=gettext("Protocol / Port"); ?></td>
+                  <td><?=gettext("Protocol"); ?></td>
+                  <td><?=gettext("Interface / IP"); ?></td>
+                  <td><?=gettext("Port"); ?></td>
                   <td><?=gettext("Tunnel Network"); ?></td>
                   <td><?=gettext("Description"); ?></td>
                   <td class="text-nowrap"></td>
@@ -1629,7 +1682,13 @@ endif; ?>
                       </a>
                     </td>
                     <td>
-                        <?=htmlspecialchars($server['protocol']);?> / <?=htmlspecialchars($server['local_port']);?>
+                        <?=htmlspecialchars($server['protocol']);?>
+                    </td>
+                    <td>
+                        <?= $server['interface'] == 'any' ? "{ any }" : get_interface_ip($server['interface']); ?>
+                    </td>
+                    <td>
+                        <?=htmlspecialchars($server['local_port']);?>
                     </td>
                     <td>
                         <?= htmlspecialchars($server['tunnel_network'])  ?>
@@ -1640,8 +1699,11 @@ endif; ?>
                         <?=htmlspecialchars($server['description']);?>
                     </td>
                     <td class="text-nowrap">
+                        <a data-id="<?=$i;?>" data-toggle="tooltip" title="<?=gettext("move selected before this item");?>" class="act_move btn btn-default btn-xs">
+                          <span class="fa fa-arrow-left fa-fw"></span>
+                        </a>
                         <a href="vpn_openvpn_server.php?act=edit&amp;id=<?=$i;?>"  title="<?= html_safe(gettext('Edit')) ?>" data-toggle="tooltip" class="btn btn-default btn-xs"><i class="fa fa-pencil fa-fw"></i></a>
-                        <a id="del_<?=$i;?>" title="<?= html_safe(gettext('Delete')) ?>" data-toggle="tooltip" class="act_delete btn btn-default btn-xs"><i class="fa fa-trash fa-fw"></i></a>
+                        <a data-id="<?=$i;?>" title="<?= html_safe(gettext('Delete')) ?>" data-toggle="tooltip" class="act_delete btn btn-default btn-xs"><i class="fa fa-trash fa-fw"></i></a>
                         <a href="vpn_openvpn_server.php?act=new&amp;dup=<?=$i;?>" class="btn btn-default btn-xs" data-toggle="tooltip" title="<?= html_safe(gettext('Clone')) ?>">
                           <span class="fa fa-clone fa-fw"></span>
                         </a>
@@ -1651,7 +1713,18 @@ endif; ?>
                   $i++;
                   endforeach;?>
                   <tr>
-                    <td colspan="5">
+                    <td colspan="6"></td>
+                    <td class="text-nowrap">
+                      <a data-id="<?=$i;?>" data-toggle="tooltip" title="<?=gettext("move selected items to end");?>" class="act_move btn btn-default btn-xs">
+                        <span class="fa fa-arrow-down fa-fw"></span>
+                      </a>
+                      <a data-id="x" title="<?=gettext("delete selected items"); ?>" data-toggle="tooltip"  class="act_delete btn btn-default btn-xs">
+                        <span class="fa fa-trash fa-fw"></span>
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="7">
                       <a href="wizard.php?xml=openvpn" class="btn btn-default">
                         <i class="fa fa-magic fa-fw"></i> <?= gettext('Use a wizard to setup a new server') ?>
                        </a>
@@ -1661,6 +1734,7 @@ endif; ?>
               </table>
             </div>
           </section>
+        </form>
 <?php
               endif; ?>
       </div>
