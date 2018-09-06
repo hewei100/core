@@ -1677,6 +1677,8 @@ endif; ?>
                   foreach ($a_server as $server) :?>
                   <tr>
                     <td>
+                      <input type="checkbox" name="rule[]" value="<?=$i;?>"  />
+                      &nbsp;
                       <a href="#" class="act_toggle" data-id="<?=$i;?>" data-toggle="tooltip" title="<?=(empty($server['disable'])) ? gettext("Disable") : gettext("Enable");?>">
                         <span class="fa fa-play <?=(empty($server['disable'])) ? "text-success" : "text-muted";?>"></span>
                       </a>
